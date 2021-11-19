@@ -233,8 +233,10 @@ void libxsmm_generator_gemm_kernel( libxsmm_generated_code*        io_generated_
   /* right now we only support eltwise fusion on SPR and BF16 */
   if ( ( (io_generated_code->arch < LIBXSMM_X86_AVX512_SPR) || (LIBXSMM_GEMM_PRECISION_BF16 != LIBXSMM_GETENUM_INP( l_xgemm_desc_mod.datatype )) ) &&
        ( l_xgemm_desc_mod.meltw_operation != LIBXSMM_MELTW_OPERATION_NONE ) ) {
+#if 0
     LIBXSMM_HANDLE_ERROR( io_generated_code, LIBXSMM_ERR_ARCH );
     return;
+#endif
   }
 
   /* check if alignment is not possible */

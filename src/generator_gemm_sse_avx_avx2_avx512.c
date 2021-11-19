@@ -147,6 +147,8 @@ LIBXSMM_API_INTERN void libxsmm_generator_gemm_sse_avx_avx2_avx512_kernel( libxs
 
   /* open asm */
   libxsmm_x86_instruction_open_stream( io_generated_code, &l_gp_reg_mapping, i_xgemm_desc->prefetch );
+  libxsmm_generator_gemm_setup_stack_frame( io_generated_code, i_xgemm_desc, &l_gp_reg_mapping, &l_micro_kernel_config, 0, 0 );
+
 
   /* @TODO we need to implement a consolidate solution for callee save stuff
    * here we need to handle AMX stuff to allow AMX optimized TPPs to run lower platforms */
@@ -436,6 +438,7 @@ LIBXSMM_API_INTERN void libxsmm_generator_gemm_sse_avx_avx2_avx512_kernel( libxs
     libxsmm_generator_gemm_footer_nloop( io_generated_code, &l_loop_label_tracker, &l_gp_reg_mapping, &l_micro_kernel_config, i_xgemm_desc, l_n_blocking, l_n_done );
   }
 
+  libxsmm_generator_gemm_destroy_stack_frame( io_generated_code, i_xgemm_desc, &l_gp_reg_mapping, &l_micro_kernel_config );
   /* close asm */
   libxsmm_x86_instruction_close_stream( io_generated_code, &l_gp_reg_mapping, i_xgemm_desc->prefetch );
 }

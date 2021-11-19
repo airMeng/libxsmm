@@ -794,6 +794,11 @@ LIBXSMM_EXTERN_C typedef LIBXSMM_RETARGETABLE void (*libxsmm_sububmmfunction_red
 LIBXSMM_EXTERN_C typedef LIBXSMM_RETARGETABLE void (*libxsmm_bmmfunction_reducebatch_offs_meltwfused)(const libxsmm_bfloat16* a, const libxsmm_bfloat16* b, libxsmm_bfloat16* c, const unsigned long long* count, const unsigned long long* a_offs, const unsigned long long* b_offs, const libxsmm_meltw_gemm_param* meltw_param, ...);
 
 LIBXSMM_EXTERN_C typedef LIBXSMM_RETARGETABLE void (*libxsmm_bmmfunction_reducebatch_strd_meltwfused)(const libxsmm_bfloat16* a, const libxsmm_bfloat16* b, libxsmm_bfloat16* c, const unsigned long long* count, const libxsmm_meltw_gemm_param* meltw_param, ...);
+
+LIBXSMM_EXTERN_C typedef LIBXSMM_RETARGETABLE void (*libxsmm_smmfunction_reducebatch_offs_meltwfused)(const float* a, const float* b, float* c, const unsigned long long* count, const unsigned long long* a_offs, const unsigned long long* b_offs, const libxsmm_meltw_gemm_param* meltw_param, ...);
+
+LIBXSMM_EXTERN_C typedef LIBXSMM_RETARGETABLE void (*libxsmm_smmfunction_reducebatch_strd_meltwfused)(const float* a, const float* b, float* c, const unsigned long long* count, const libxsmm_meltw_gemm_param* meltw_param, ...);
+
 LIBXSMM_EXTERN_C typedef LIBXSMM_RETARGETABLE void (*libxsmm_bsmmfunction_reducebatch_strd_meltwfused)(const libxsmm_bfloat16* a, const libxsmm_bfloat16* b, float* c, const unsigned long long* count, const libxsmm_meltw_gemm_param* meltw_param, ...);
 
 /** Function type which is either libxsmm_smmfunction or libxsmm_dmmfunction (weak-typed). */
@@ -813,6 +818,8 @@ LIBXSMM_EXTERN_C typedef union LIBXSMM_RETARGETABLE libxsmm_xmmfunction {
   libxsmm_sububmmfunction_reducebatch_strd sububmrs;
   libxsmm_bmmfunction_reducebatch_strd_meltwfused bmrs_meltwfused;
   libxsmm_bmmfunction_reducebatch_offs_meltwfused bmro_meltwfused;
+  libxsmm_smmfunction_reducebatch_strd_meltwfused smrs_meltwfused;
+  libxsmm_smmfunction_reducebatch_offs_meltwfused smro_meltwfused;
   libxsmm_bsmmfunction_reducebatch_strd_meltwfused bsmrs_meltwfused;
 } libxsmm_xmmfunction;
 

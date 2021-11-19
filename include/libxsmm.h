@@ -361,6 +361,9 @@ LIBXSMM_API libxsmm_sububmmfunction_reducebatch_strd libxsmm_sububmmdispatch_red
  * This kernel provides the following operation: C = \sum_i A_i * B_i + C_old + colbroadcast(bias) followed by  C_out = Act( C ), the dump of "C" is possible.
  * Also we support elementwise operations on A/B (e.g. decompression of A).
  * */
+LIBXSMM_API libxsmm_smmfunction_reducebatch_strd_meltwfused libxsmm_smmdispatch_reducebatch_strd_meltwfused(libxsmm_blasint m, libxsmm_blasint n, libxsmm_blasint k, libxsmm_blasint stride_a, libxsmm_blasint stride_b,
+  const libxsmm_blasint* lda, const libxsmm_blasint* ldb, const libxsmm_blasint* ldc, const float* alpha, const float* beta, const int* flags, const int* prefetch,
+  libxsmm_meltw_operation meltw_op, libxsmm_datatype meltw_dt, libxsmm_meltw_flags meltw_flags, unsigned char meltw_param, unsigned int meltw_ldx, unsigned int meltw_ldy, unsigned int meltw_ldz);
 LIBXSMM_API libxsmm_bmmfunction_reducebatch_strd_meltwfused libxsmm_bmmdispatch_reducebatch_strd_meltwfused(libxsmm_blasint m, libxsmm_blasint n, libxsmm_blasint k, libxsmm_blasint stride_a, libxsmm_blasint stride_b,
   const libxsmm_blasint* lda, const libxsmm_blasint* ldb, const libxsmm_blasint* ldc, const float* alpha, const float* beta, const int* flags, const int* prefetch,
   libxsmm_meltw_operation meltw_op, libxsmm_datatype meltw_dt, libxsmm_meltw_flags meltw_flags, unsigned char meltw_param, unsigned int meltw_ldx, unsigned int meltw_ldy, unsigned int meltw_ldz);
@@ -371,6 +374,10 @@ LIBXSMM_API libxsmm_bsmmfunction_reducebatch_strd_meltwfused libxsmm_bsmmdispatc
   const libxsmm_blasint* lda, const libxsmm_blasint* ldb, const libxsmm_blasint* ldc, const float* alpha, const float* beta, const int* flags, const int* prefetch,
   libxsmm_meltw_operation meltw_op, libxsmm_datatype meltw_dt, libxsmm_meltw_flags meltw_flags, unsigned char meltw_param, unsigned int meltw_ldx, unsigned int meltw_ldy, unsigned int meltw_ldz);
 LIBXSMM_API libxsmm_bsmmfunction_reducebatch_strd_meltwfused libxsmm_bsmmdispatch_reducebatch_strd_meltwfused_unroll(libxsmm_blasint m, libxsmm_blasint n, libxsmm_blasint k, libxsmm_blasint stride_a, libxsmm_blasint stride_b, libxsmm_blasint unroll_hint,
+  const libxsmm_blasint* lda, const libxsmm_blasint* ldb, const libxsmm_blasint* ldc, const float* alpha, const float* beta, const int* flags, const int* prefetch,
+  libxsmm_meltw_operation meltw_op, libxsmm_datatype meltw_dt, libxsmm_meltw_flags meltw_flags, unsigned char meltw_param, unsigned int meltw_ldx, unsigned int meltw_ldy, unsigned int meltw_ldz);
+
+LIBXSMM_API libxsmm_smmfunction_reducebatch_offs_meltwfused libxsmm_smmdispatch_reducebatch_offs_meltwfused(libxsmm_blasint m, libxsmm_blasint n, libxsmm_blasint k,
   const libxsmm_blasint* lda, const libxsmm_blasint* ldb, const libxsmm_blasint* ldc, const float* alpha, const float* beta, const int* flags, const int* prefetch,
   libxsmm_meltw_operation meltw_op, libxsmm_datatype meltw_dt, libxsmm_meltw_flags meltw_flags, unsigned char meltw_param, unsigned int meltw_ldx, unsigned int meltw_ldy, unsigned int meltw_ldz);
 
