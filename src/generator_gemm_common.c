@@ -72,13 +72,13 @@ int libxsmm_generator_gemm_get_rbp_relative_offset( libxsmm_gemm_stack_var stack
     case LIBXSMM_GEMM_STACK_VAR_ELT_DECOMPRESS_BUF:
       return -80;
     case LIBXSMM_GEMM_STACK_VAR_ARG_7:
-      return 16;
+      return 56;
     case LIBXSMM_GEMM_STACK_VAR_ARG_8:
-      return 24;
+      return 64;
     case LIBXSMM_GEMM_STACK_VAR_ARG_9:
-      return 32;
+      return 72;
     case LIBXSMM_GEMM_STACK_VAR_ARG_10:
-      return 40;
+      return 80;
     default:
       return 0;
   }
@@ -2422,12 +2422,6 @@ void libxsmm_generator_gemm_setup_stack_frame( libxsmm_generated_code*          
       libxsmm_generator_gemm_setval_stack_var( io_generated_code, i_micro_kernel_config, LIBXSMM_GEMM_STACK_VAR_GEMM_SCRATCH_PTR, LIBXSMM_X86_GP_REG_RSP );
     }
 
-    /* Now push to RSP the callee-save registers  */
-    libxsmm_x86_instruction_push_reg( io_generated_code, LIBXSMM_X86_GP_REG_RBX );
-    libxsmm_x86_instruction_push_reg( io_generated_code, LIBXSMM_X86_GP_REG_R12 );
-    libxsmm_x86_instruction_push_reg( io_generated_code, LIBXSMM_X86_GP_REG_R13 );
-    libxsmm_x86_instruction_push_reg( io_generated_code, LIBXSMM_X86_GP_REG_R14 );
-    libxsmm_x86_instruction_push_reg( io_generated_code, LIBXSMM_X86_GP_REG_R15 );
   }
 
   /* The stack at exit of setup looks like this:
@@ -2474,13 +2468,6 @@ void libxsmm_generator_gemm_destroy_stack_frame( libxsmm_generated_code*        
     return;
   }
 
-  if (is_spr > 0) {
-    libxsmm_x86_instruction_pop_reg( io_generated_code, LIBXSMM_X86_GP_REG_R15 );
-    libxsmm_x86_instruction_pop_reg( io_generated_code, LIBXSMM_X86_GP_REG_R14 );
-    libxsmm_x86_instruction_pop_reg( io_generated_code, LIBXSMM_X86_GP_REG_R13 );
-    libxsmm_x86_instruction_pop_reg( io_generated_code, LIBXSMM_X86_GP_REG_R12 );
-    libxsmm_x86_instruction_pop_reg( io_generated_code, LIBXSMM_X86_GP_REG_RBX );
-  }
   libxsmm_x86_instruction_alu_reg( io_generated_code, i_micro_kernel_config->alu_mov_instruction, LIBXSMM_X86_GP_REG_RBP, LIBXSMM_X86_GP_REG_RSP);
   libxsmm_x86_instruction_pop_reg( io_generated_code, LIBXSMM_X86_GP_REG_RBP );
 }
