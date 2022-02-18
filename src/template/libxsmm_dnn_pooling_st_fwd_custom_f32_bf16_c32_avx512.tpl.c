@@ -47,7 +47,7 @@ const int nBlocksFm = handle->blocksifm;
 /* computing first logical thread */
 const int ltid = tid - start_thread;
 /* number of tasks that could be run in parallel */
-const int work = nImg * nBlocksFm;
+const int work = nImg * ofw * ofh * nBlocksFm;
 /* compute chunk size */
 const int chunksize = (work % handle->desc.threads == 0) ? (work / handle->desc.threads) : ((work / handle->desc.threads) + 1);
 /* compute thr_begin and thr_end */
@@ -64,7 +64,8 @@ int hi = 0;
 int wi = 0;
 int kh = 0;
 int kw = 0;
-int v = 0;
+int _ho = 0;
+int _wo = 0;
 #if defined(LIBXSMM_DNN_POOLING_FWD_AVG)
 #if defined(LIBXSMM_DNN_POOLING_FWD_BF16)
 float recp_pool_size = 1.0f/((float)handle->desc.R*(float)handle->desc.S);
@@ -74,106 +75,76 @@ element_output_type recp_pool_size = 1.0f/((element_output_type)handle->desc.R*(
 #endif
 
 /* multi-dim arrays declaration */
-#if defined(LIBXSMM_DNN_POOLING_FWD_BF16)
-float* lcl_buffer_ptr = ((float*)handle->scratch)+((size_t)ofh*(size_t)ofw*(size_t)32*(size_t)ltid);
-LIBXSMM_VLA_DECL(3,       float, lcl_output, lcl_buffer_ptr,                                                   ofw, 32);
-#else
-element_output_type* lcl_buffer_ptr = ((element_output_type*)handle->scratch)+((size_t)ofh*(size_t)ofw*(size_t)32*(size_t)ltid);
-LIBXSMM_VLA_DECL(3,       element_output_type, lcl_output, lcl_buffer_ptr,                                                   ofw, 32);
-#endif
 LIBXSMM_VLA_DECL(5, const element_input_type,  input,      (element_input_type* )handle->reg_input->data,  nBlocksFm, ifhp, ifwp, 32);
 LIBXSMM_VLA_DECL(5,       element_output_type, output,     (element_output_type*)handle->reg_output->data, nBlocksFm, ofhp, ofwp, 32);
 #if defined(LIBXSMM_DNN_POOLING_FWD_MAX)
 LIBXSMM_VLA_DECL(5,       element_mask_type,   mask,       (element_mask_type*  )handle->mask->data,       nBlocksFm,  ofh,  ofw, 32);
+LIBXSMM_UNUSED(mask_);
 #endif
-
 /* lazy barrier init */
-libxsmm_barrier_init(handle->barrier, ltid);
 
 for (imgfm = thr_begin; imgfm < thr_end; ++imgfm) {
 #if defined(LIBXSMM_DNN_POOLING_FWD_MAX)
-  __m512i lcl_viadd  = _mm512_set_epi32( 15, 14, 13, 12, 11, 10,  9,  8,  7,  6,  5,  4,  3,  2,  1,  0 );
 #endif
-  img = imgfm / nBlocksFm;
-  fm = imgfm % nBlocksFm;
+  element_output_type*     output_ptr;
+#if defined(LIBXSMM_DNN_POOLING_FWD_AVG)
+  const __m512 recp_pool_size_ps = _mm512_set1_ps( recp_pool_size );
+#endif
 
-  for( v = 0; v < ofh*ofw*32; v+=16 ) {
+  img = imgfm / (ofw * ofh * nBlocksFm);
+  fm = (imgfm % (ofw * ofh * nBlocksFm))/(ofw * ofh);
+  _ho = ((imgfm % (ofw * ofh * nBlocksFm))%(ofw * ofh))/ofw;
+  _wo = ((imgfm % (ofw * ofh * nBlocksFm))%(ofw * ofh))%ofw;
+  ho = oph + _ho;
+  wo = opw + _wo;
+  wi = ((wo-opw) * sw) - handle->desc.pad_w;
+  hi = ((ho-oph) * sh) - handle->desc.pad_h;
+
 #if defined(LIBXSMM_DNN_POOLING_FWD_MAX)
-    _mm512_storeu_ps( &(lcl_buffer_ptr[v]), _mm512_set1_ps(-FLT_MAX) );
+#endif
+#if defined(LIBXSMM_DNN_POOLING_FWD_MAX)
+  __m512 lcl_voutput  = _mm512_set1_ps(-FLT_MAX);
+  __m512 lcl_voutput2 = _mm512_set1_ps(-FLT_MAX);
 #endif
 #if defined(LIBXSMM_DNN_POOLING_FWD_AVG)
-    _mm512_storeu_ps( &(lcl_buffer_ptr[v]), _mm512_setzero_ps() );
+  __m512 lcl_voutput  = _mm512_setzero_ps();
+  __m512 lcl_voutput2 = _mm512_setzero_ps();
 #endif
-  }
 
-  for( ho = oph; ho < (ofh+oph); ho++ ) {
-    hi = ((ho-oph) * sh) - handle->desc.pad_h;
-    for( wo = opw; wo < (ofw+opw); wo++ ) {
-      float*               lcl_output_ptr = &LIBXSMM_VLA_ACCESS(3, lcl_output, ho-oph, wo-opw, 0, ofw, 32);
+  for( kh = 0; kh < handle->desc.R; kh++ ) {
+    if (hi+kh < 0 || hi+kh >= ifh) continue;
+    for( kw = 0; kw < handle->desc.S; kw++ ) {
+      if (wi+kw < 0 || wi+kw >= ifw) {
+        continue;
+      } else {
+        const element_input_type*      input_ptr  = &LIBXSMM_VLA_ACCESS(5, input,      img, fm, hi+kh+iph, wi+kw+ipw, 0, nBlocksFm, ifhp, ifwp, 32);
 #if defined(LIBXSMM_DNN_POOLING_FWD_MAX)
-      __m512i lcl_vmask  = _mm512_loadu_si512( &LIBXSMM_VLA_ACCESS(5, mask, img, fm, ho-oph, wo-opw,  0, nBlocksFm, ofh, ofw, 32) );
-      __m512i lcl_vmask2 = _mm512_loadu_si512( &LIBXSMM_VLA_ACCESS(5, mask, img, fm, ho-oph, wo-opw, 16, nBlocksFm, ofh, ofw, 32) );
-#endif
-      __m512 lcl_voutput  = _mm512_loadu_ps( lcl_output_ptr );
-      __m512 lcl_voutput2 = _mm512_loadu_ps( lcl_output_ptr+16 );
-
-      wi = ((wo-opw) * sw) - handle->desc.pad_w;
-      for( kh = 0; kh < handle->desc.R; kh++ ) {
-        if (hi+kh < 0 || hi+kh >= ifh) continue;
-        for( kw = 0; kw < handle->desc.S; kw++ ) {
-          if (wi+kw < 0 || wi+kw >= ifw) {
-            continue;
-          } else {
-            const element_input_type*      input_ptr  = &LIBXSMM_VLA_ACCESS(5, input,      img, fm, hi+kh+iph, wi+kw+ipw, 0, nBlocksFm, ifhp, ifwp, 32);
-#if defined(LIBXSMM_DNN_POOLING_FWD_MAX)
-            __m512i lcl_vnewmask  = _mm512_add_epi32( lcl_viadd, _mm512_set1_epi32((hi+kh)*ifw*32 + (wi+kw)*32) );
-            __m512i lcl_vnewmask2 = _mm512_add_epi32( lcl_viadd, _mm512_set1_epi32((hi+kh)*ifw*32 + (wi+kw)*32 + 16) );
-            __m512 lcl_vinput  = _mm512_load_act( input_ptr );
-            __m512 lcl_vinput2 = _mm512_load_act( input_ptr+16 );
-            __mmask16 lcl_mlt  = _mm512_cmp_ps_mask( lcl_voutput,  lcl_vinput,  _CMP_LT_OS );
-            __mmask16 lcl_mlt2 = _mm512_cmp_ps_mask( lcl_voutput2, lcl_vinput2, _CMP_LT_OS );
-            lcl_voutput   = _mm512_mask_blend_ps( lcl_mlt,  lcl_voutput,  lcl_vinput );
-            lcl_voutput2  = _mm512_mask_blend_ps( lcl_mlt2, lcl_voutput2, lcl_vinput2 );
-            lcl_vmask  = _mm512_mask_blend_epi32( lcl_mlt,  lcl_vmask,    lcl_vnewmask );
-            lcl_vmask2 = _mm512_mask_blend_epi32( lcl_mlt2, lcl_vmask2,   lcl_vnewmask2 );
+        lcl_voutput  = _mm512_max_ps( lcl_voutput,  _mm512_load_act( input_ptr ) );
+        lcl_voutput2 = _mm512_max_ps( lcl_voutput2, _mm512_load_act( input_ptr+16 ) );
 #endif
 #if defined(LIBXSMM_DNN_POOLING_FWD_AVG)
-            lcl_voutput  = _mm512_add_ps( lcl_voutput,  _mm512_load_act( input_ptr ) );
-            lcl_voutput2 = _mm512_add_ps( lcl_voutput2, _mm512_load_act( input_ptr+16 ) );
+        lcl_voutput  = _mm512_add_ps( lcl_voutput,  _mm512_load_act( input_ptr ) );
+        lcl_voutput2 = _mm512_add_ps( lcl_voutput2, _mm512_load_act( input_ptr+16 ) );
 #endif
-          }
-        }
       }
-#if defined(LIBXSMM_DNN_POOLING_FWD_MAX)
-      _mm512_storeu_si512( &LIBXSMM_VLA_ACCESS(5, mask, img, fm, ho-oph, wo-opw,  0, nBlocksFm, ofh, ofw, 32), lcl_vmask );
-      _mm512_storeu_si512( &LIBXSMM_VLA_ACCESS(5, mask, img, fm, ho-oph, wo-opw, 16, nBlocksFm, ofh, ofw, 32), lcl_vmask2 );
-#endif
-      _mm512_storeu_ps( lcl_output_ptr,    lcl_voutput );
-      _mm512_storeu_ps( lcl_output_ptr+16, lcl_voutput2 );
     }
   }
+#if defined(LIBXSMM_DNN_POOLING_FWD_MAX)
+#endif
 
   /* copy the local buffer into output activations */
-  for( ho = oph; ho < (ofh+oph); ho++ ) {
-    element_output_type*     output_ptr = &LIBXSMM_VLA_ACCESS(5, output,     img, fm,     ho, opw, 0, nBlocksFm, ofhp, ofwp, 32);
-    float*               lcl_output_ptr = &LIBXSMM_VLA_ACCESS(3, lcl_output,          ho-oph,   0, 0,                   ofw, 32);
-    for( wo = opw; wo < (ofw+opw); wo++ ) {
+  output_ptr = &LIBXSMM_VLA_ACCESS(5, output,     img, fm,     ho, wo, 0, nBlocksFm, ofhp, ofwp, 32);
 #if defined(LIBXSMM_DNN_POOLING_FWD_AVG)
-      const __m512 recp_pool_size_ps = _mm512_set1_ps( recp_pool_size );
-      _mm512_stream_act( output_ptr,    _mm512_mul_ps( _mm512_loadu_ps( lcl_output_ptr ),    recp_pool_size_ps ) );
-      _mm512_stream_act( output_ptr+16, _mm512_mul_ps( _mm512_loadu_ps( lcl_output_ptr+16 ), recp_pool_size_ps ) );
+  _mm512_stream_act( output_ptr,    _mm512_mul_ps( lcl_voutput,  recp_pool_size_ps ) );
+  _mm512_stream_act( output_ptr+16, _mm512_mul_ps( lcl_voutput2, recp_pool_size_ps ) );
 #endif
 #if defined(LIBXSMM_DNN_POOLING_FWD_MAX)
-      _mm512_stream_act( output_ptr,    _mm512_loadu_ps( lcl_output_ptr ) );
-      _mm512_stream_act( output_ptr+16, _mm512_loadu_ps( lcl_output_ptr+16 ) );
+  _mm512_stream_act( output_ptr,    lcl_voutput );
+  _mm512_stream_act( output_ptr+16, lcl_voutput2);
 #endif
-      output_ptr += 32;
-      lcl_output_ptr += 32;
-    }
-  }
 }
 
-libxsmm_barrier_wait(handle->barrier, ltid);
+//libxsmm_barrier_wait(handle->barrier, ltid);
 
 # undef _mm512_load_act
 # undef _mm512_stream_act

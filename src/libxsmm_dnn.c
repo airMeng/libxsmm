@@ -44,25 +44,35 @@ LIBXSMM_API_INTERN libxsmm_dnn_err_t libxsmm_dnn_get_feature_map_blocks( int C, 
   int ifmblock = 0;
   int ofmblock = 0;
   int lp_block = 0;
-  int tmp_max_c_block = 64;
-  int tmp_max_k_block = 64;
+  int tmp_max_c_block = 32;
+  int tmp_max_k_block = 32;
   int tmp_block = 0;
+  int block_use = tmp_max_c_block;
+  const char *const env_pool_block = getenv("POOL_BLOCK");
+
 
   /* init libxsmm */
   LIBXSMM_INIT
+
+  if ( 0 == env_pool_block ) {
+  } else {
+    block_use = atoi(env_pool_block);
+  }
+  tmp_max_c_block = block_use;
+  tmp_max_k_block = block_use;
 
   /* C */
   if ((libxsmm_target_archid == LIBXSMM_X86_AVX512_VL256_CLX) || (libxsmm_target_archid == LIBXSMM_X86_AVX512_VL256_CPX)
           || (libxsmm_target_archid == LIBXSMM_X86_AVX512_VL256)
         ){
-    tmp_max_c_block = LIBXSMM_BLOCK_SIZE;
+    tmp_max_c_block = block_use;
   } else if ( ((libxsmm_target_archid >= LIBXSMM_X86_AVX512_SPR) && (datatype_in == LIBXSMM_DNN_DATATYPE_BF16)) ||
        (libxsmm_target_archid < LIBXSMM_X86_AVX512 ) ) {
     tmp_max_c_block = 32;
   } else if ( libxsmm_target_archid == LIBXSMM_AARCH64_V81 ) {
     tmp_max_c_block = 16;
   }
-  if ( C < tmp_max_c_block ) {
+  if ( C <= tmp_max_c_block ) {
     ifmblock = C;
   } else {
     for ( tmp_block = 1; tmp_block <= tmp_max_c_block; tmp_block *= 2 ) {
@@ -74,14 +84,14 @@ LIBXSMM_API_INTERN libxsmm_dnn_err_t libxsmm_dnn_get_feature_map_blocks( int C, 
   if ((libxsmm_target_archid == LIBXSMM_X86_AVX512_VL256_CLX) || (libxsmm_target_archid == LIBXSMM_X86_AVX512_VL256_CPX)
         || (libxsmm_target_archid == LIBXSMM_X86_AVX512_VL256)
       ){
-    tmp_max_k_block = LIBXSMM_BLOCK_SIZE;
+    tmp_max_k_block = block_use;
   } else if ( ((libxsmm_target_archid >= LIBXSMM_X86_AVX512_SPR) && (datatype_in == LIBXSMM_DNN_DATATYPE_BF16)) ||
        (libxsmm_target_archid < LIBXSMM_X86_AVX512 ) ) {
     tmp_max_k_block = 32;
   } else if ( libxsmm_target_archid == LIBXSMM_AARCH64_V81 ) {
     tmp_max_k_block = 16;
   }
-  if ( K < tmp_max_k_block ) {
+  if ( K <= tmp_max_k_block ) {
     ofmblock = K;
   } else {
     for ( tmp_block = 1; tmp_block <= tmp_max_k_block; tmp_block *= 2 ) {
